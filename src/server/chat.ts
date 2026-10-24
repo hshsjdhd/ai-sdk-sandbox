@@ -1,4 +1,3 @@
-import { createOpenAI } from "@ai-sdk/openai";
 import {
   convertToModelMessages,
   createUIMessageStreamResponse,
@@ -46,20 +45,21 @@ app.post("/chat", async (c) => {
   ) {
     return c.text("当前仅支持文字对话。", 400);
   }
-  if (!process.env.OPENAI_API_KEY)
-    return c.text("请在 .env.local 配置 OPENAI_API_KEY。", 503);
+  if (!process.env.AI_GATEWAY_API_KEY && !process.env.VERCEL_OIDC_TOKEN)
+    return c.text("请配置 AI_GATEWAY_API_KEY 或 Vercel OIDC 身份认证。", 503);
 
-  const openai = createOpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-    baseURL: process.env.OPENAI_BASE_URL || "https://ouyangai.com/v1",
-  });
   const result = streamText({
-    model: "openai/gpt-6-luna",
+    model: "openai/gpt-6.1-sol",
     instructions:
       "你是一位友好、清晰的中文助手。根据用户的语言回答，善用 Markdown，保持回答简洁实用。",
     messages: await convertToModelMessages(messages),
     abortSignal: c.req.raw.signal,
-    maxOutputTokens: 4096,
+    providerOptions: {
+      openai: {
+        reasoningEffort: "medium",
+        reasoningSummary: "auto",
+      },
+    },
     onError: () =>
       console.error(
         "[chat] Model stream failed. Check provider configuration and availability.",

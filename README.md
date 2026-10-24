@@ -14,13 +14,14 @@ pnpm dev
 在 `.env.local` 中配置（不要把密钥放入 `NEXT_PUBLIC_*`）：
 
 ```dotenv
-OPENAI_API_KEY=your-api-key
-# 默认沿用现有 CLI 示例的兼容接口，可改成其他 OpenAI 兼容地址
-OPENAI_BASE_URL=https://ouyangai.com/v1
-OPENAI_MODEL=gpt-6-luna
+AI_GATEWAY_API_KEY=your-vercel-ai-gateway-api-key
 ```
 
-服务端使用 OpenAI Chat Completions 兼容协议。配置修改后重启服务。
+聊天接口使用 AI SDK 默认的 Vercel AI Gateway，通过 `openai/gpt-6.1-sol` 指定模型，不手动创建 OpenAI Provider。模型需在 Gateway 中可用；Vercel 环境也可使用 `VERCEL_OIDC_TOKEN` 身份认证。配置修改后重启服务。
+
+接口请求中等推理强度和自动推理摘要；是否返回摘要取决于 Gateway 对应模型的支持情况。有推理摘要时，页面显示可折叠内容。
+
+原有 CLI 示例仍使用 `OPENAI_API_KEY`，与网页聊天接口的 Gateway 配置独立。
 
 ## 功能
 
