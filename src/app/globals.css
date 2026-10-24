@@ -284,26 +284,17 @@ a {
   font-weight: 400;
   font-size: 11px;
 }
-.mode-select {
-  position: relative;
-  display: flex;
+.mobile-new-chat {
+  display: none;
   align-items: center;
-  color: #818d78;
-}
-.mode-select select {
-  appearance: none;
-  background: transparent;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  color: var(--green);
   border: 1px solid #e2e5da;
   border-radius: 6px;
-  padding: 7px 26px 7px 10px;
-  color: inherit;
-  font-size: 11px;
-  cursor: pointer;
-}
-.mode-select > svg {
-  position: absolute;
-  right: 9px;
-  pointer-events: none;
+  background: transparent;
 }
 .conversation {
   flex: 1;
@@ -474,9 +465,6 @@ a {
 }
 .status-error {
   background: #bf7261;
-}
-.demo-hint {
-  color: #b1b6a6;
 }
 .composer-actions {
   display: flex;
@@ -789,6 +777,9 @@ a {
   }
 }
 @media (max-width: 760px) {
+  .mobile-new-chat {
+    display: flex;
+  }
   .sidebar {
     display: none;
   }
@@ -845,9 +836,6 @@ a {
   }
   .message {
     gap: 10px;
-  }
-  .demo-hint {
-    font-size: 9px;
   }
   .welcome-caption {
     font-size: 9px;
