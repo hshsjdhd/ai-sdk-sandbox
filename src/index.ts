@@ -2,7 +2,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 
 const openai = createOpenAI({
   apiKey: process.env.OPENAI_API_KEY,
-  baseURL: "https://ouyangai.com/v1",
+  baseURL: "http://43.153.35.81:8080/v1",
 });
 
 import { generateText, streamText } from "ai";
@@ -10,7 +10,7 @@ import { readFile } from "fs/promises";
 
 // 推理模型（o1 / o3 / o4-mini）
 const result = streamText({
-  model: "openai/gpt-6-luna",
+  model: openai("gpt-6.1-sol"),
 
   allowSystemInMessages: true,
   messages: [

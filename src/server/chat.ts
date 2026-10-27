@@ -7,7 +7,12 @@ import {
 } from "ai";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
+import { createOpenAI } from "@ai-sdk/openai";
 
+const openai = createOpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+  baseURL: "http://43.153.35.81:8080/v1",
+});
 export const app = new Hono().basePath("/api");
 
 app.use(
@@ -45,11 +50,14 @@ app.post("/chat", async (c) => {
   ) {
     return c.text("当前仅支持文字对话。", 400);
   }
-  if (!process.env.AI_GATEWAY_API_KEY && !process.env.VERCEL_OIDC_TOKEN)
-    return c.text("请配置 AI_GATEWAY_API_KEY 或 Vercel OIDC 身份认证。", 503);
+  if (!process.env.OPENAI_API_KEY?.trim())
+    return c.text(
+      "请在项目根目录的环境文件中配置 OPENAI_API_KEY，并重启服务。",
+      503,
+    );
 
   const result = streamText({
-    model: "openai/gpt-6.1-sol",
+    model: openai("gpt-6.1-sol"),
     instructions:
       "你是一位友好、清晰的中文助手。根据用户的语言回答，善用 Markdown，保持回答简洁实用。",
     messages: await convertToModelMessages(messages),
@@ -60,16 +68,20 @@ app.post("/chat", async (c) => {
         reasoningSummary: "auto",
       },
     },
-    onError: () =>
-      console.error(
-        "[chat] Model stream failed. Check provider configuration and availability.",
-      ),
+    onError: (event) => {
+      console.error("[chat] Model stream failed:");
+      console.dir(event, { depth: 6 });
+    },
   });
   return createUIMessageStreamResponse({
     stream: toUIMessageStream({
       stream: result.stream,
       originalMessages: messages,
-      onError: () => "模型请求失败，请检查 API Key、接口地址和模型名称后重试。",
+      onError: (error) => {
+        console.error("[chat] UI message stream failed:");
+        console.dir(error, { depth: 6 });
+        return "模型请求失败，请检查 API Key、接口地址和模型名称后重试。";
+      },
     }),
   });
 });
