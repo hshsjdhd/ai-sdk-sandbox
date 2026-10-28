@@ -10,7 +10,7 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "next typegen && tsc --noEmit",
-    "cli": "tsx --env-file=.env.local src/index.ts"
+    "cli": "tsx --env-file=.env.local demo/structuredOutput.ts"
   },
   "keywords": [],
   "author": "",
