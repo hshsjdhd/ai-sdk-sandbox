@@ -14,6 +14,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChatComposer } from "./chat-composer";
 import { ChatMessages } from "./chat-messages";
 import { ChatWelcome } from "./chat-welcome";
+import { ThemeSwitcher } from "./theme-switcher";
 
 const transport = new DefaultChatTransport({ api: "/api/chat" });
 
@@ -122,6 +123,7 @@ export function Chat({ model }: { model: string }) {
             Playground <span>/</span> <strong>对话</strong>
           </div>
           <div className="topbar-right">
+            <ThemeSwitcher />
             <span className="mvp-badge">MVP 01</span>
             <span className="connection">
               <i />

@@ -1,4 +1,4 @@
-import { generateText, Output } from "ai";
+import { generateText, Output, streamText } from "ai";
 import { z } from "zod";
 
 const EmotionSchema = z.object({
@@ -29,5 +29,37 @@ const { output: output2 } = await generateText({
   output: Output.json(),
   prompt: "用 JSON 返回今天的待办。",
 });
+
+const ReportSchema = z.object({
+  title: z.string(),
+  summary: z.string(),
+  sections: z.array(
+    z.object({
+      heading: z.string(),
+      body: z.string(),
+    }),
+  ),
+  conclusion: z.string(),
+});
+const result = streamText({
+  model: "openai/gpt-6.1-sol",
+  instructions:
+    "你是一位友好、清晰的中文助手。根据用户的语言回答，善用 Markdown，保持回答简洁实用。",
+  output: Output.object({
+    schema: ReportSchema,
+  }),
+  prompt: "请帮我写一份关于人工智能的报告。",
+});
+
+for await (const partial of result.textStream) {
+  console.clear();
+  console.log(JSON.stringify(partial, null, 2));
+}
+// 最终完整对象：已通过 schema 校验
+const final = await result.output;
+
+console.clear();
+console.log("最终报告：");
+console.log(JSON.stringify(final, null, 2));
 // output 的类型自动推导为 EmotionSchema 的 infer 结果
-console.log(output2); // string
+// console.log(output2); // string

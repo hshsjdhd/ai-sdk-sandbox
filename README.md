@@ -31,6 +31,32 @@ Next.js 自动加载项目根目录的 `.env.local` 或 `.env`，无需给 `next
 - 错误提示与重试、新对话、自动跟随滚动、中文输入法与手机端适配。
 - 对话仅存在当前页面内存中，刷新后清空。生成期间不可清空会话。
 
+## 样式与暗黑模式
+
+- 已接入 Tailwind CSS v4，通过 `postcss.config.mjs` 加载；可以直接使用工具类和 `dark:` 变体。
+- `src/app/globals.css` 保留原有样式，不启用 Preflight 重置，避免影响 Markdown 与既有页面布局；现有样式放在 `base` 层，工具类可正常覆盖。
+- 页面采用黑白灰中性色，浅色为白底深色文字，暗黑为近黑底浅色文字，主按钮随主题反转；错误状态保留红色提示。
+- 聊天页和报告页右上角均可选择浅色、暗黑或跟随系统，默认跟随系统。选择通过 `next-themes` 保存在本地，并在标签页间同步。
+- `ThemeProvider` 在首次绘制前应用根元素的 `.dark` 类，刷新时保持主题；全局 CSS 变量同时适配现有组件与报告页面。
+
+## useObject 结构化报告示例
+
+打开 http://localhost:3000/report。该页面与 `/` 聊天页面、`/api/chat` 接口独立，不会修改聊天状态。
+
+- 输入报告要求，实时查看报告预览和 `object` 的部分 JSON。
+- 支持停止生成并保留部分结果、清空结果及失败后重新生成。
+- `onFinish` 中获取校验通过的完整报告，页面下方可展开查看。
+- 前后端共用 `src/lib/report-schema.ts`；`POST /api/report` 使用 `streamText` + `Output.object`，通过 `toTextStreamResponse()` 返回 JSON 文本流，由前端 `useObject` 解析。
+
+复用服务端 `OPENAI_API_KEY`，另支持以下可选环境变量（仅影响报告示例）：
+
+```dotenv
+OPENAI_BASE_URL=http://your-openai-compatible-endpoint/v1
+OPENAI_REPORT_MODEL=gpt-6.1-sol
+```
+
+不设置接口地址时沿用聊天示例的自定义接口地址；模型需要支持结构化输出。报告接口接受 `{ "prompt": "报告要求" }`，要求为 1 至 2000 字。生成失败或最终对象校验失败时显示错误，不会将部分对象标记为完成。报告数据仅保存在当前页面内存中。
+
 ## 命令与结构
 
 ```sh
