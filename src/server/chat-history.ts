@@ -6,7 +6,8 @@ export function statelessChatHistory(messages: UIMessage[]): UIMessage[] {
   return messages.map((message) => ({
     ...message,
     parts: message.parts
-      .filter((part) => part.type !== "reasoning" && part.type !== "reasoning-file")
+      // Native search IDs and sources are display-only, never replayable items.
+      .filter((part) => part.type === "text" || part.type === "file")
       .map((part) => {
         if (part.type === "text") {
           const { providerMetadata, ...content } = part;

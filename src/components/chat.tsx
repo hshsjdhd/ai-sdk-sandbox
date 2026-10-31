@@ -49,9 +49,6 @@ export function Chat({ model }: { model: string }) {
   const [showScroll, setShowScroll] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const [persistedMessages, setPersistedMessages] = useState<UIMessage[]>(() =>
-    JSON.parse(localStorage.getItem("chat-history") ?? "[]"),
-  );
 
   const followRef = useRef(true);
   const {
@@ -65,13 +62,6 @@ export function Chat({ model }: { model: string }) {
     clearError,
   } = useChat({
     transport,
-    onFinish: ({ message }) => {
-      setPersistedMessages((prev) => [...prev, message]);
-      localStorage.setItem(
-        "chat-history",
-        JSON.stringify([...persistedMessages, message]),
-      );
-    },
   });
   const busy = status === "submitted" || status === "streaming";
 

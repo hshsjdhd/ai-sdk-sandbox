@@ -1,4 +1,5 @@
 import type { FileUIPart, UIMessage } from "ai";
+import { safeSourceUrl } from "./web-search";
 
 export const MAX_FILES = 4;
 export const MAX_FILE_BYTES = 5 * 1024 * 1024;
@@ -170,9 +171,19 @@ export function validateAttachmentMessages(messages: UIMessage[]): number {
           "file",
           "data-emotion",
           "data-memories-used",
+          "tool-web_search",
+          "source-url",
         ].includes(part.type)
       )
         throw new Error("消息中包含不支持的内容。");
+      if (part.type === "tool-web_search" || part.type === "source-url") {
+        if (message.role !== "assistant")
+          throw new Error("搜索与来源仅允许出现在助手消息中。");
+        if (part.type === "source-url" && !safeSourceUrl(part.url))
+          throw new Error("来源链接无效，仅支持 HTTP(S) 链接。");
+        if (part.type === "tool-web_search" && part.providerExecuted !== true)
+          throw new Error("仅支持模型原生联网搜索。");
+      }
       if (part.type === "file") {
         if (message.role !== "user")
           throw new Error("只有用户消息可以包含附件。");

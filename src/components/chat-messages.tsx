@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { AttachmentPreview } from "./attachment-preview";
+import { safeSourceUrl } from "../lib/web-search";
 
 export function ChatMessages({
   messages,
@@ -78,13 +79,41 @@ export function ChatMessages({
                     {message.role === "user" ? (
                       part.text
                     ) : (
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          a: ({ href, children }) => {
+                            const url = href && safeSourceUrl(href);
+                            return url ? (
+                              <a href={url} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">{children}</a>
+                            ) : <span>{children}</span>;
+                          },
+                        }}
+                      >
                         {part.text}
                       </ReactMarkdown>
                     )}
                   </div>
                 ) : part.type === "file" ? (
                   <AttachmentPreview key={index} file={part} />
+                ) : part.type === "tool-web_search" ? (
+                  <div key={index} className="reasoning" role="status">
+                    {part.state === "output-available"
+                      ? "联网搜索已完成"
+                      : part.state === "output-error" || part.state === "output-denied"
+                        ? "联网搜索失败"
+                        : busy && message.id === messages.at(-1)?.id
+                          ? "正在联网搜索…"
+                          : stopped
+                            ? "联网搜索已停止"
+                            : "联网搜索未完成，请重试"}
+                  </div>
+                ) : part.type === "source-url" && safeSourceUrl(part.url) ? (
+                  <div key={index} className="markdown">
+                    <a href={safeSourceUrl(part.url)} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">
+                      来源：{part.title || part.url}
+                    </a>
+                  </div>
                 ) : null,
               )}
               {message.role === "assistant" && text && (
