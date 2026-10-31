@@ -1,10 +1,11 @@
-import type { ChatStatus, UIMessage } from "ai";
+import { isToolUIPart, type ChatStatus, type UIMessage } from "ai";
 import { Check, Copy, Leaf, LoaderCircle, Square } from "lucide-react";
 import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { AttachmentPreview } from "./attachment-preview";
 import { safeSourceUrl } from "../lib/web-search";
+import { ToolInvocationCard, toolSearchDetails } from "./tool-invocation-card";
 
 export function ChatMessages({
   messages,
@@ -44,6 +45,28 @@ export function ChatMessages({
           .filter((part) => part.type === "text")
           .map((part) => part.text)
           .join("");
+        const sourceIndexes = new Set<number>();
+        const citationUrls = new Set<string>();
+        message.parts.forEach((part, index) => {
+          const url = part.type === "source-url" && safeSourceUrl(part.url);
+          if (url && !citationUrls.has(url)) {
+            sourceIndexes.add(index);
+            citationUrls.add(url);
+          }
+        });
+        const renderedSources = new Set<string>();
+        const toolSources = new Map<string, Map<string, string>>();
+        for (const part of message.parts) {
+          if (!isToolUIPart(part)) continue;
+          const sources = new Map<string, string>();
+          for (const [url, title] of toolSearchDetails(part).sources) {
+            if (!citationUrls.has(url) && !renderedSources.has(url)) {
+              sources.set(url, title);
+              renderedSources.add(url);
+            }
+          }
+          toolSources.set(part.toolCallId, sources);
+        }
         return (
           <article
             key={message.id}
@@ -85,8 +108,17 @@ export function ChatMessages({
                           a: ({ href, children }) => {
                             const url = href && safeSourceUrl(href);
                             return url ? (
-                              <a href={url} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">{children}</a>
-                            ) : <span>{children}</span>;
+                              <a
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                referrerPolicy="no-referrer"
+                              >
+                                {children}
+                              </a>
+                            ) : (
+                              <span>{children}</span>
+                            );
                           },
                         }}
                       >
@@ -96,21 +128,27 @@ export function ChatMessages({
                   </div>
                 ) : part.type === "file" ? (
                   <AttachmentPreview key={index} file={part} />
-                ) : part.type === "tool-web_search" ? (
-                  <div key={index} className="reasoning" role="status">
-                    {part.state === "output-available"
-                      ? "联网搜索已完成"
-                      : part.state === "output-error" || part.state === "output-denied"
-                        ? "联网搜索失败"
-                        : busy && message.id === messages.at(-1)?.id
-                          ? "正在联网搜索…"
-                          : stopped
-                            ? "联网搜索已停止"
-                            : "联网搜索未完成，请重试"}
-                  </div>
-                ) : part.type === "source-url" && safeSourceUrl(part.url) ? (
+                ) : message.role === "assistant" && isToolUIPart(part) ? (
+                  <ToolInvocationCard
+                    key={part.toolCallId}
+                    part={part}
+                    active={
+                      status === "streaming" &&
+                      message.id === messages.at(-1)?.id
+                    }
+                    stopped={
+                      stopped && !busy && message.id === messages.at(-1)?.id
+                    }
+                    sources={toolSources.get(part.toolCallId)}
+                  />
+                ) : part.type === "source-url" && sourceIndexes.has(index) ? (
                   <div key={index} className="markdown">
-                    <a href={safeSourceUrl(part.url)} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">
+                    <a
+                      href={safeSourceUrl(part.url)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      referrerPolicy="no-referrer"
+                    >
                       来源：{part.title || part.url}
                     </a>
                   </div>
