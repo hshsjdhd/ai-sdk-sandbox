@@ -3,6 +3,7 @@ import { Check, Copy, Leaf, LoaderCircle, Square } from "lucide-react";
 import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { AttachmentPreview } from "./attachment-preview";
 
 export function ChatMessages({
   messages,
@@ -82,6 +83,8 @@ export function ChatMessages({
                       </ReactMarkdown>
                     )}
                   </div>
+                ) : part.type === "file" ? (
+                  <AttachmentPreview key={index} file={part} />
                 ) : null,
               )}
               {message.role === "assistant" && text && (

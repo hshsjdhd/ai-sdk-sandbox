@@ -1,7 +1,13 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport } from "ai";
+import { DefaultChatTransport, UIMessage, type FileUIPart } from "ai";
+import {
+  MAX_FILES,
+  MAX_ATTACHMENT_BYTES,
+  validateAttachmentMessages,
+  validateFile,
+} from "../lib/attachments";
 import {
   ArrowDown,
   FlaskConical,
@@ -11,19 +17,42 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { uploadAttachment } from "../lib/upload-attachment";
 import { ChatComposer } from "./chat-composer";
 import { ChatMessages } from "./chat-messages";
 import { ChatWelcome } from "./chat-welcome";
 import { ThemeSwitcher } from "./theme-switcher";
 
-const transport = new DefaultChatTransport({ api: "/api/chat" });
+// 每次只发送最后一条输入 避免上下文爆炸 需要借助kv
+const transport = new DefaultChatTransport({
+  api: "/api/chat",
+  headers: { "x-ai-sdk": "chat-lab" },
+
+  // prepareSendMessagesRequest: ({ id, messages, body }) => {
+  //   return {
+  //     body: {
+  //       id,
+  //       messages: [messages[messages.length - 1]],
+  //       ...body,
+  //     },
+  //   };
+  // },
+});
 
 export function Chat({ model }: { model: string }) {
   const [input, setInput] = useState("");
+  const [files, setFiles] = useState<FileUIPart[]>([]);
+  const [converting, setConverting] = useState(false);
+  const [attachmentError, setAttachmentError] = useState<string>();
+  const readingRef = useRef(false);
   const [stopped, setStopped] = useState(false);
   const [showScroll, setShowScroll] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [persistedMessages, setPersistedMessages] = useState<UIMessage[]>(() =>
+    JSON.parse(localStorage.getItem("chat-history") ?? "[]"),
+  );
+
   const followRef = useRef(true);
   const {
     messages,
@@ -34,7 +63,16 @@ export function Chat({ model }: { model: string }) {
     regenerate,
     setMessages,
     clearError,
-  } = useChat({ transport });
+  } = useChat({
+    transport,
+    onFinish: ({ message }) => {
+      setPersistedMessages((prev) => [...prev, message]);
+      localStorage.setItem(
+        "chat-history",
+        JSON.stringify([...persistedMessages, message]),
+      );
+    },
+  });
   const busy = status === "submitted" || status === "streaming";
 
   useEffect(() => {
@@ -44,18 +82,80 @@ export function Chat({ model }: { model: string }) {
         : 0;
   }, [messages, status]);
 
+  async function addFiles(selected: File[]) {
+    if (busy || readingRef.current || !selected.length) return;
+    setAttachmentError(undefined);
+    readingRef.current = true;
+    setConverting(true);
+    try {
+      if (files.length + selected.length > MAX_FILES)
+        throw new Error("每条消息最多添加 4 个附件，请移除部分文件后重试。");
+      selected.forEach((file) => validateFile(file.name, file.size));
+      const used = validateAttachmentMessages([
+        ...messages,
+        { id: "pending", role: "user", parts: files },
+      ]);
+      if (
+        used + selected.reduce((sum, file) => sum + file.size, 0) >
+        MAX_ATTACHMENT_BYTES
+      )
+        throw new Error(
+          "附件总大小（含对话历史）超过 10 MB，请开启新对话或移除附件。",
+        );
+      const failures: string[] = [];
+      for (const file of selected) {
+        try {
+          const uploaded = await uploadAttachment(file);
+          setFiles((current) => [...current, uploaded]);
+        } catch (error) {
+          failures.push(
+            error instanceof Error ? error.message : `${file.name}：上传失败。`,
+          );
+        }
+      }
+      if (failures.length) setAttachmentError(failures.join("\n"));
+    } catch (error) {
+      setAttachmentError(
+        error instanceof Error
+          ? error.message
+          : "附件读取失败，请重新选择文件。",
+      );
+    } finally {
+      readingRef.current = false;
+      setConverting(false);
+    }
+  }
+
   function send(text = input) {
-    if (!text.trim() || busy) return;
+    if ((!text.trim() && !files.length) || busy || readingRef.current) return;
+    try {
+      validateAttachmentMessages([
+        ...messages,
+        { id: "pending", role: "user", parts: files },
+      ]);
+    } catch (error) {
+      setAttachmentError(
+        error instanceof Error ? error.message : "附件无效，请检查后重新添加。",
+      );
+      return;
+    }
+    setFiles([]);
+    setAttachmentError(undefined);
     setInput("");
     setStopped(false);
     clearError();
     followRef.current = true;
-    void sendMessage({ text: text.trim() });
+    void sendMessage(
+      { text: text.trim(), files },
+      { body: { sessionId: "sess_123", mood: "tired" } },
+    );
     textareaRef.current?.focus();
   }
 
   function newChat() {
-    if (busy) return;
+    if (busy || readingRef.current) return;
+    setFiles([]);
+    setAttachmentError(undefined);
     setMessages([]);
     clearError();
     setStopped(false);
@@ -66,6 +166,7 @@ export function Chat({ model }: { model: string }) {
   }
 
   function retry() {
+    if (busy || readingRef.current) return;
     clearError();
     setStopped(false);
     followRef.current = true;
@@ -81,7 +182,11 @@ export function Chat({ model }: { model: string }) {
           </span>
           chat lab<span className="brand-dot">.</span>
         </a>
-        <button className="new-chat" onClick={newChat} disabled={busy}>
+        <button
+          className="new-chat"
+          onClick={newChat}
+          disabled={busy || converting}
+        >
           <Plus size={17} /> 开启新对话 <span>＋</span>
         </button>
         <div className="sidebar-section">你的空间</div>
@@ -144,7 +249,7 @@ export function Chat({ model }: { model: string }) {
             aria-label="开启新对话"
             title="开启新对话"
             onClick={newChat}
-            disabled={busy}
+            disabled={busy || converting}
           >
             <Plus size={17} />
           </button>
@@ -163,7 +268,7 @@ export function Chat({ model }: { model: string }) {
           }}
         >
           {messages.length === 0 ? (
-            <ChatWelcome busy={busy} onSend={send} />
+            <ChatWelcome busy={busy || converting} onSend={send} />
           ) : (
             <ChatMessages
               messages={messages}
@@ -191,6 +296,14 @@ export function Chat({ model }: { model: string }) {
             </button>
           )}
           <ChatComposer
+            files={files}
+            converting={converting}
+            attachmentError={attachmentError}
+            onAddFiles={(selected) => void addFiles(selected)}
+            onRemoveFile={(index) => {
+              setFiles((current) => current.filter((_, i) => i !== index));
+              setAttachmentError(undefined);
+            }}
             input={input}
             onInputChange={setInput}
             inputRef={textareaRef}

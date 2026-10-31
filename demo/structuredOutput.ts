@@ -1,6 +1,11 @@
 import { generateText, Output, streamText } from "ai";
 import { z } from "zod";
+import { createOpenAI } from "@ai-sdk/openai";
 
+const openai = createOpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+  baseURL: "http://43.153.35.81:8080/v1",
+});
 const EmotionSchema = z.object({
   primary: z.enum(["happy", "sad", "angry", "calm", "neutral"]),
   intensity: z.number().min(0).max(1),
@@ -9,14 +14,14 @@ const EmotionSchema = z.object({
 });
 
 const { output } = await generateText({
-  model: "openai/gpt-6.1-sol",
+  model: openai("gpt-6.1-sol"),
   output: Output.array({
     element: z.object({ name: z.string(), age: z.number() }),
   }),
   prompt: "生成 3 个虚构人物。",
 });
 const { output: output1 } = await generateText({
-  model: "openai/gpt-6.1-sol",
+  model: openai("gpt-6.1-sol"),
 
   output: Output.choice({
     options: ["happy", "sad", "angry", "neutral"],
@@ -24,8 +29,7 @@ const { output: output1 } = await generateText({
   prompt: "这段话是什么情绪：今天被裁员了。",
 });
 const { output: output2 } = await generateText({
-  model: "openai/gpt-6.1-sol",
-
+  model: openai("gpt-6.1-sol"),
   output: Output.json(),
   prompt: "用 JSON 返回今天的待办。",
 });
@@ -42,7 +46,7 @@ const ReportSchema = z.object({
   conclusion: z.string(),
 });
 const result = streamText({
-  model: "openai/gpt-6.1-sol",
+  model: openai("gpt-6.1-sol"),
   instructions:
     "你是一位友好、清晰的中文助手。根据用户的语言回答，善用 Markdown，保持回答简洁实用。",
   output: Output.object({

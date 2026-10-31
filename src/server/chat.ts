@@ -9,17 +9,26 @@ import {
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { createOpenAI } from "@ai-sdk/openai";
+import { MAX_REQUEST_BYTES } from "../lib/attachments";
+import {
+  prepareAttachmentMessages,
+  trustedAttachmentDownload,
+} from "./attachments";
+import { phaseTimer } from "./attachment-performance";
+import { statelessChatHistory } from "./chat-history";
+import { reportChatError } from "./chat-errors";
 
 const openai = createOpenAI({
   apiKey: process.env.OPENAI_API_KEY,
-  baseURL: "http://43.153.35.81:8080/v1",
+  baseURL:
+    process.env.OPENAI_BASE_URL?.trim() || "http://43.135.154.69:8080/v1",
 });
 export const app = new Hono().basePath("/api");
 
 app.use(
   "/chat",
   bodyLimit({
-    maxSize: 256 * 1024,
+    maxSize: MAX_REQUEST_BYTES,
     onError: (c) => c.text("消息过长，请缩短后重试。", 413),
   }),
 );
@@ -42,14 +51,27 @@ app.post("/chat", async (c) => {
   const messages = validation.data;
   if (
     messages.some(
-      (message) =>
-        !["user", "assistant"].includes(message.role) ||
-        message.parts.some(
-          (part) => !["text", "reasoning", "step-start"].includes(part.type),
-        ),
+      (message) => !["user", "assistant"].includes(message.role),
+      //  ||
+      //   message.parts.some(
+      //     (part) => !["text", "reasoning", "step-start"].includes(part.type),
+      //   ),
     )
   ) {
     return c.text("当前仅支持文字对话。", 400);
+  }
+  let modelMessages;
+  const signedUrls = new Set<string>();
+  try {
+    const prepared = await prepareAttachmentMessages(messages, signedUrls);
+    const timer = phaseTimer();
+    modelMessages = await convertToModelMessages(statelessChatHistory(prepared));
+    timer("model-message-conversion");
+  } catch (error) {
+    return c.text(
+      error instanceof Error ? error.message : "附件无效，请检查后重新添加。",
+      400,
+    );
   }
   if (!process.env.OPENAI_API_KEY?.trim())
     return c.text(
@@ -57,6 +79,7 @@ app.post("/chat", async (c) => {
       503,
     );
   const stream = createUIMessageStream({
+    onError: reportChatError,
     execute: async ({ writer }) => {
       // 先发一个业务数据：当前情绪
       writer.write({
@@ -65,14 +88,29 @@ app.post("/chat", async (c) => {
       });
 
       // 再调 LLM，把流合并进来
+      const modelTimer = phaseTimer();
+      let firstChunk = true;
       const result = streamText({
-        model: openai("gpt-6.1-sol"),
+        model: openai.responses(
+          process.env.OPENAI_MODEL?.trim() || "gpt-6.1-sol",
+        ),
+        experimental_download: trustedAttachmentDownload(signedUrls),
+        onChunk: () => {
+          if (firstChunk) {
+            firstChunk = false;
+            modelTimer("model-first-chunk");
+          }
+        },
+        onFinish: () => {
+          modelTimer("model-complete");
+        },
         instructions:
           "你是一位友好、清晰的中文助手。根据用户的语言回答，善用 Markdown，保持回答简洁实用。",
-        messages: await convertToModelMessages(messages),
+        messages: modelMessages,
         abortSignal: c.req.raw.signal,
         providerOptions: {
           openai: {
+            store: false,
             reasoningEffort: "medium",
             reasoningSummary: "auto",
           },
@@ -85,9 +123,8 @@ app.post("/chat", async (c) => {
         onAbort: async ({ steps }) => {
           console.log("用户中止，已完成", steps.length, "步");
         },
-        onError: (event) => {
-          console.error("[chat] Model stream failed:");
-          console.dir(event, { depth: 6 });
+        onError: () => {
+          console.error("[chat] Model stream failed");
         },
       });
       writer.merge(
@@ -102,11 +139,7 @@ app.post("/chat", async (c) => {
               data: { count: 3 },
             });
           },
-          onError: (error) => {
-            console.error("[chat] UI message stream failed:");
-            console.dir(error, { depth: 6 });
-            return "模型请求失败，请检查 API Key、接口地址和模型名称后重试。";
-          },
+          onError: reportChatError,
         }),
       );
       // 最后再发一个业务数据：本次用到的记忆条数
