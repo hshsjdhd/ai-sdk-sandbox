@@ -1,6 +1,7 @@
 {
+  "framework": "nextjs",
   "functions": {
-    "src/app/api/[[...route]]/route.ts": {
+    "src/app/api/[[][[]...route[]][]]/route.ts": {
       "supportsCancellation": true
     }
   }

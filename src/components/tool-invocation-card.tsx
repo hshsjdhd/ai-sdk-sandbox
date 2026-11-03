@@ -90,6 +90,125 @@ function formatValue(value: unknown) {
   }
 }
 
+const fieldLabels: Record<string, string> = {
+  query: "查询内容",
+  queries: "查询列表",
+  action: "执行操作",
+  type: "类型",
+  sources: "来源列表",
+  url: "链接",
+  title: "标题",
+  text: "文本",
+  content: "内容",
+  result: "结果",
+  results: "结果列表",
+  status: "状态",
+  message: "说明",
+  error: "错误",
+};
+
+function ToolValue({ value, depth = 0 }: { value: unknown; depth?: number }) {
+  if (value === null || value === undefined || value === "") {
+    return (
+      <span className="tool-value-empty">
+        {value === "" ? "空文本" : "无值"}
+      </span>
+    );
+  }
+  if (typeof value === "boolean") {
+    return <span className="tool-value-badge">{value ? "是" : "否"}</span>;
+  }
+  if (typeof value === "object") {
+    const entries = Array.isArray(value)
+      ? value.map((item, index) => [String(index + 1), item] as const)
+      : Object.entries(value);
+    if (!entries.length) {
+      return (
+        <span className="tool-value-empty">
+          {Array.isArray(value) ? "空列表" : "无字段"}
+        </span>
+      );
+    }
+    if (depth >= 4) {
+      return (
+        <p className="tool-value-empty">嵌套内容较深，请展开原始数据查看。</p>
+      );
+    }
+    const fields = (
+      <dl className="tool-value-fields">
+        {entries.map(([key, item]) => (
+          <div className="tool-value-field" key={key}>
+            <dt title={key}>
+              {Array.isArray(value)
+                ? `第 ${key} 项`
+                : Object.hasOwn(fieldLabels, key)
+                  ? fieldLabels[key]
+                  : key}
+            </dt>
+            <dd>
+              <ToolValue value={item} depth={depth + 1} />
+            </dd>
+          </div>
+        ))}
+      </dl>
+    );
+    return depth > 0 ? (
+      <details
+        className="tool-value-group"
+        open={depth === 1 && entries.length <= 5}
+      >
+        <summary>
+          <ChevronDown size={12} aria-hidden="true" />
+          {entries.length} {Array.isArray(value) ? "项内容" : "个字段"}
+        </summary>
+        {fields}
+      </details>
+    ) : (
+      fields
+    );
+  }
+  const text = String(value);
+  const url = typeof value === "string" ? safeSourceUrl(value) : undefined;
+  return url ? (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      referrerPolicy="no-referrer"
+    >
+      {text}
+    </a>
+  ) : (
+    <p className="tool-value-text">{text}</p>
+  );
+}
+
+function ToolData({ value }: { value: unknown }) {
+  let displayValue = value;
+  if (typeof value === "string") {
+    try {
+      const parsed: unknown = JSON.parse(value);
+      if (parsed !== null && typeof parsed === "object") displayValue = parsed;
+    } catch {
+      // Streaming arguments may not be complete JSON yet.
+    }
+  }
+  return (
+    <div className="tool-data">
+      <div className="tool-data-preview">
+        <ToolValue value={displayValue} />
+      </div>
+      <details className="tool-data-raw">
+        <summary>
+          <ChevronDown size={12} aria-hidden="true" />
+          查看原始数据
+        </summary>
+        <pre>{formatValue(value)}</pre>
+      </details>
+    </div>
+  );
+}
+
 export function ToolInvocationCard({
   part,
   active,
@@ -105,10 +224,13 @@ export function ToolInvocationCard({
   const search = name === "web_search";
   const { queries } = toolSearchDetails(part);
   const { kind, label, Icon } = toolStatus(part, active, stopped);
-  const input = formatValue(
-    part.input ?? ("rawInput" in part ? part.rawInput : undefined),
-  );
-  const output = formatValue(part.output);
+  const input =
+    part.input !== undefined
+      ? part.input
+      : "rawInput" in part
+        ? part.rawInput
+        : undefined;
+  const output = part.output;
   const reason = part.approval?.reason || part.approval?.requestReason;
   const hasDetails =
     input !== undefined ||
@@ -180,7 +302,7 @@ export function ToolInvocationCard({
                 <strong>
                   输入{part.state === "input-streaming" ? "（接收中）" : ""}
                 </strong>
-                <pre>{input}</pre>
+                <ToolData value={input} />
               </div>
             )}
             {output !== undefined && (
@@ -191,7 +313,7 @@ export function ToolInvocationCard({
                     ? "（部分结果）"
                     : ""}
                 </strong>
-                <pre>{output}</pre>
+                <ToolData value={output} />
               </div>
             )}
             {sources.size > 0 && (

@@ -928,6 +928,24 @@ a {
   color: var(--secondary);
   font: 11px/1.6 ui-monospace, monospace;
 }
+.tool-data { margin-top: 6px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.tool-data-preview { padding: 10px 12px; max-height: 360px; overflow: auto; }
+.tool-value-fields { margin: 0; }
+.tool-value-field { display: grid; grid-template-columns: minmax(70px, 100px) minmax(0, 1fr); gap: 8px 12px; padding: 8px 0; }
+.tool-value-field + .tool-value-field { border-top: 1px solid var(--line); }
+.tool-value-field:first-child { padding-top: 0; }
+.tool-value-field:last-child { padding-bottom: 0; }
+.tool-value-field dt { color: var(--muted); overflow-wrap: anywhere; }
+.tool-value-field dd { margin: 0; min-width: 0; }
+.tool-value-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.tool-value-empty { color: var(--muted); }
+.tool-value-badge { display: inline-block; padding: 1px 7px; border-radius: 4px; background: var(--subtle); }
+.tool-value-group > summary { padding: 0 0 4px; font-size: 11px; }
+.tool-value-group[open] > summary svg, .tool-data-raw[open] > summary svg { transform: rotate(180deg); }
+.tool-value-group .tool-value-field { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+.tool-data-raw { border-top: 1px solid var(--line); background: var(--subtle); }
+.tool-data-raw > summary { padding: 7px 12px; font-size: 11px; color: var(--muted); }
+.tool-data-raw pre { margin: 0; border-radius: 0; }
 .tool-card-content .tool-card-error pre { color: var(--error-ink); }
 .tool-card-content ul { list-style: none; margin: 6px 0 0; padding: 0; }
 .tool-card-content li + li { margin-top: 6px; }

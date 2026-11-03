@@ -49,6 +49,7 @@ app.post("/chat", async (c) => {
   // Zod schemas bridge the installed provider/core provider-utils versions.
   // Keep these aligned with @ai-sdk/openai's native web-search output schema.
   const nativeSearch = openai.tools.webSearch({ searchContextSize: "medium" });
+  console.log("nativeSearch>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>", nativeSearch);
   const tools = {
     web_search: {
       type: nativeSearch.type,
@@ -56,23 +57,53 @@ app.post("/chat", async (c) => {
       args: nativeSearch.args,
       isProviderExecuted: true as const,
       inputSchema: z.object({}).strict(),
-      outputSchema: z.object({
-        action: z.discriminatedUnion("type", [
-          z.object({ type: z.literal("search"), query: z.string().optional(), queries: z.array(z.string()).optional() }).strict(),
-          z.object({ type: z.literal("openPage"), url: z.string().nullish() }).strict(),
-          z.object({ type: z.literal("findInPage"), url: z.string().nullish(), pattern: z.string().nullish() }).strict(),
-        ]).optional(),
-        sources: z.array(z.discriminatedUnion("type", [
-          z.object({ type: z.literal("url"), url: z.string() }).strict(),
-          z.object({ type: z.literal("api"), name: z.string() }).strict(),
-        ])).optional(),
-      }).strict(),
+      outputSchema: z
+        .object({
+          action: z
+            .discriminatedUnion("type", [
+              z
+                .object({
+                  type: z.literal("search"),
+                  query: z.string().optional(),
+                  queries: z.array(z.string()).optional(),
+                })
+                .strict(),
+              z
+                .object({
+                  type: z.literal("openPage"),
+                  url: z.string().nullish(),
+                })
+                .strict(),
+              z
+                .object({
+                  type: z.literal("findInPage"),
+                  url: z.string().nullish(),
+                  pattern: z.string().nullish(),
+                })
+                .strict(),
+            ])
+            .optional(),
+          sources: z
+            .array(
+              z.discriminatedUnion("type", [
+                z.object({ type: z.literal("url"), url: z.string() }).strict(),
+                z.object({ type: z.literal("api"), name: z.string() }).strict(),
+              ]),
+            )
+            .optional(),
+        })
+        .strict(),
     },
   };
   const onModelError = (error: unknown) => reportChatError(error, true);
   const validation = await safeValidateUIMessages({
     messages: body.messages,
-    tools: { web_search: { inputSchema: tools.web_search.inputSchema, outputSchema: tools.web_search.outputSchema } },
+    tools: {
+      web_search: {
+        inputSchema: tools.web_search.inputSchema,
+        outputSchema: tools.web_search.outputSchema,
+      },
+    },
   });
   if (!validation.success || !validation.data.length)
     return c.text("聊天消息格式无效。", 400);
@@ -93,7 +124,9 @@ app.post("/chat", async (c) => {
   try {
     const prepared = await prepareAttachmentMessages(messages, signedUrls);
     const timer = phaseTimer();
-    modelMessages = await convertToModelMessages(statelessChatHistory(prepared));
+    modelMessages = await convertToModelMessages(
+      statelessChatHistory(prepared),
+    );
     timer("model-message-conversion");
   } catch (error) {
     return c.text(
@@ -120,7 +153,7 @@ app.post("/chat", async (c) => {
       let firstChunk = true;
       const result = streamText({
         model: openai.responses(
-          process.env.OPENAI_MODEL?.trim() || "gpt-6.1-sol",
+          process.env.OPENAI_MODEL?.trim() || "gpt-6-astra",
         ),
         experimental_download: trustedAttachmentDownload(signedUrls),
         onChunk: () => {
