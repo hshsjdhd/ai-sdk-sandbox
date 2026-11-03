@@ -123,7 +123,7 @@ curl.exe -X POST http://localhost:3000/api/upload `
 
 ## useObject 结构化报告示例
 
-打开 http://localhost:3000/report。该页面与 `/` 聊天页面、`/api/chat` 接口独立，不会修改聊天状态。
+点击聊天页左侧栏的「结构化报告」（手机端为顶部「报告」）进入，也可直接打开 http://localhost:3000/report。该页面与 `/` 聊天页面、`/api/chat` 接口独立；聊天记录仅保存在页面内存中，离开聊天页面后不保证保留。
 
 - 输入报告要求，实时查看报告预览和 `object` 的部分 JSON。
 - 支持停止生成并保留部分结果、清空结果及失败后重新生成。

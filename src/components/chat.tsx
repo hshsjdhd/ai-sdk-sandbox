@@ -11,17 +11,20 @@ import {
 import {
   ArrowDown,
   FlaskConical,
+  FileText,
   Leaf,
   MessageSquare,
   Plus,
   Sparkles,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { uploadAttachment } from "../lib/upload-attachment";
 import { ChatComposer } from "./chat-composer";
 import { ChatMessages } from "./chat-messages";
 import { ChatWelcome } from "./chat-welcome";
 import { ThemeSwitcher } from "./theme-switcher";
+import { useRouter } from "next/navigation";
 
 // 每次只发送最后一条输入 避免上下文爆炸 需要借助kv
 const transport = new DefaultChatTransport({
@@ -49,7 +52,10 @@ export function Chat({ model }: { model: string }) {
   const [showScroll, setShowScroll] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-
+  const router = useRouter();
+  const toResume = () => {
+    router.push("/resume");
+  };
   const followRef = useRef(true);
   const {
     messages,
@@ -193,6 +199,14 @@ export function Chat({ model }: { model: string }) {
           </span>
           <span className="active-dot" />
         </div>
+        <Link className="report-nav-link" href="/report">
+          <FileText size={17} aria-hidden="true" />
+          <span>结构化报告</span>
+        </Link>
+        <div className="report-nav-link" onClick={toResume}>
+          <FileText size={17} aria-hidden="true" />
+          <span>简历分析</span>
+        </div>
         <div className="sidebar-note">
           <FlaskConical size={20} />
           <p>
@@ -218,6 +232,10 @@ export function Chat({ model }: { model: string }) {
             Playground <span>/</span> <strong>对话</strong>
           </div>
           <div className="topbar-right">
+            <Link className="report-nav-link mobile-report-link" href="/report">
+              <FileText size={16} aria-hidden="true" />
+              <span>报告</span>
+            </Link>
             <ThemeSwitcher />
             <span className="mvp-badge">MVP 01</span>
             <span className="connection">

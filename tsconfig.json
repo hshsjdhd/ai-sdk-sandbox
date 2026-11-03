@@ -10,6 +10,9 @@
     "isolatedModules": true,
     "incremental": true,
     "types": ["node"],
+    "paths": {
+      "@/*": ["./src/*"]
+    },
     "plugins": [
       {
         "name": "next"
