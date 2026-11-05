@@ -24,6 +24,7 @@
     "allowJs": true
   },
   "include": [
+    "src/lib/**/*.ts",
     "node",
     "next-env.d.ts",
     "src/app/**/*.ts",
