@@ -15,7 +15,8 @@
     "cli2": "tsx --env-file=.env.local demo/stopWhen.ts",
     "call": "tsx --env-file=.env.local demo/langchain/call.ts",
     "stream": "tsx --env-file=.env.local demo/langchain/stream.ts",
-    "agent": "tsx --env-file=.env.local demo/langchain/agent.ts"
+    "agent": "tsx --env-file=.env.local demo/langchain/agent.ts",
+    "messages": "tsx --env-file=.env.local demo/langchain/messages.ts"
   },
   "keywords": [],
   "author": "",

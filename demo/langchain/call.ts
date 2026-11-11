@@ -19,6 +19,6 @@ const response = await model.invoke([
   },
 ]);
 
-console.log("invoke result:");
 console.log(response.text);
-console.log(response);
+console.log(response.content);
+console.log(response.contentBlocks);
