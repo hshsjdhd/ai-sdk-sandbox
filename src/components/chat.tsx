@@ -207,6 +207,10 @@ export function Chat({ model }: { model: string }) {
           <FileText size={17} aria-hidden="true" />
           <span>简历分析</span>
         </div>
+        <Link className="report-nav-link" href="/uiTransform">
+          <FileText size={17} aria-hidden="true" />
+          <span>UI转换示例</span>
+        </Link>
         <div className="sidebar-note">
           <FlaskConical size={20} />
           <p>
