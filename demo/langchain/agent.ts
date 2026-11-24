@@ -1,5 +1,6 @@
 import { ChatOpenAI } from "@langchain/openai";
 import { createAgent } from "langchain";
+import { selectModelMiddleware } from "../../src/app/uiTransform/middleware";
 
 const model = new ChatOpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -21,6 +22,7 @@ const agent = createAgent({
   model: model,
   systemPrompt: "你是一名面向前端开发者的助手，回答要清楚、简短。",
   tools: [],
+  middleware: [selectModelMiddleware],
 });
 const stream = await agent.stream(
   {

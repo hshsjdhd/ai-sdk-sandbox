@@ -1,6 +1,7 @@
 import { ChatOpenAI } from "@langchain/openai";
 import { createAgent } from "langchain";
 import type { AgentStreamInput } from "./types";
+import { selectModelMiddleware } from "./middleware";
 
 const model = new ChatOpenAI({
   apiKey: "sk-0180068011f478ece3b3e7b1b8f2f248f03083a9d8184b18876db0dc30aa8eff",
@@ -27,6 +28,7 @@ const agent = createAgent({
   model: model,
   systemPrompt: SYSTEM_PROMPT,
   tools: [],
+  middleware: [selectModelMiddleware],
 });
 // 创建 Agent 流，用于流式输出回答
 export async function createAgentStream({
